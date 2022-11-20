@@ -22,6 +22,26 @@ class DataServer():
         self.debug = debug
         self.db_pool = None
 
+    @Request.get('/UserList')
+    async def send_basic_data(self, writer):
+        sql = 'SELECT a.name, a.user_desc, a.date FROM Users AS a'
+
+        async with self.db_pool.acquire() as conn:
+            async with conn.cursor() as cursor:
+                await cursor.execute(sql)
+                result = await cursor.fetchall()
+                str_list = []
+                for data in result:
+                    data = list(data)
+                    name = data[0]
+                    user_desc = data[1]
+                    date = data[2]
+                    str_list.append(f'{name},{user_desc},{date}')
+                csv_str = '\n'.join(str_list)
+        response = self.build_response(csv_str)
+        writer.write(response)    
+    
+
     @Request.get('/TestData')
     async def send_basic_data(self, writer):
         sql = 'SELECT b.name, a.map, a.action, a.time, a.x_coord, a.y_coord, a.date FROM GameLog AS a JOIN Users AS b ON a.user_idx = b.idx WHERE b.name = "test_user"'
@@ -73,7 +93,7 @@ class DataServer():
             if len(chunk) < 1024:
                 break
         method, url = self.parse_request(request)
-
+        print(url)
         if method == 'GET':
             if url in Request.path_dict:
                 await Request.path_dict[url](self, writer)
